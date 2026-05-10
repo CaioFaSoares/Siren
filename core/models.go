@@ -1,4 +1,5 @@
-// internal/config/models.go
+package core
+
 type Device struct {
     ID       string `json:"id"`
     Name     string `json:"name"`     // Ex: "MacBook Pro" ou "Yamori Linux"

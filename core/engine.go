@@ -1,4 +1,5 @@
-// internal/audio/engine.go
+package core
+
 type Engine interface {
     Start(targetIP string, targetPlatform string) error
     Stop() error
