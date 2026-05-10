@@ -35,18 +35,11 @@
         libsoup_3
       ];
 
-      # Dependências exclusivas do macOS (Frameworks Nativas da Apple)
-      darwinDeps = with pkgs.darwin.apple_sdk.frameworks; [
-        Cocoa
-        WebKit
-      ];
-
     in {
       default = pkgs.mkShell {
         # O Nix injeta as dependências certas testando o SO base
         buildInputs = commonDeps 
-          ++ pkgs.lib.optionals pkgs.stdenv.isLinux linuxDeps
-          ++ pkgs.lib.optionals pkgs.stdenv.isDarwin darwinDeps;
+          ++ pkgs.lib.optionals pkgs.stdenv.isLinux linuxDeps;
         
         # O shellHook também precisa ser condicional.
         # O macOS não precisa (nem deve) exportar variáveis do GTK.
