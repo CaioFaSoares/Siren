@@ -44,7 +44,7 @@ O projeto adota uma arquitetura **Hexagonal (Ports and Adapters)** para garantir
 ### Épico 3: Modo Daemon e Orquestração
 - **Objetivo:** Permitir que o áudio rode sem janelas abertas.
 - **Tasks:**
-    - [ ] Implementar comando `siren tunnel start` via Cobra.
+    - [x] Implementar comandos `siren tunnel` e `siren device` via Cobra.
     - [ ] Adicionar suporte a System Tray no Wails para controle em background.
     - [ ] Implementar "Watchers" para hot-plugging de dispositivos de áudio.
 
@@ -65,7 +65,7 @@ O projeto adota uma arquitetura **Hexagonal (Ports and Adapters)** para garantir
 
 1. **Sprint 1 (Fundação):** Finalização do `core/models.go` e persistência com Viper. (CONCLUÍDO)
 2. **Sprint 2 (Motores):** Implementação do PipeWireEngine e DarwinEngine (Start/Stop limpo). (CONCLUÍDO)
-3. **Sprint 3 (CLI/Daemon):** Comandos Cobra funcionais e teste de tunneling via terminal.
+3. **Sprint 3 (CLI/Daemon):** Comandos Cobra funcionais e teste de tunneling via terminal. (EM PROGRESSO - CLI Concluída)
 4. **Sprint 4 (GUI):** Desenvolvimento da interface Nuxt e integração de eventos Wails.
 5. **Sprint 5 (Polimento):** Tray icon, notificações de sistema e builds de produção.
 
