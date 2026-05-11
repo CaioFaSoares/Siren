@@ -4,6 +4,11 @@ import (
 	"embed"
 	"fmt"
 	"os"
+	"os/signal"
+	"strings"
+	"syscall"
+
+	"siren/core"
 
 	"github.com/spf13/cobra"
 	"github.com/wailsapp/wails/v2"
@@ -27,22 +32,146 @@ func main() {
 		},
 	}
 
-	// Subcomando CLI (Ex: `siren tunnel`)
+	// Agrupador de comandos de túnel
 	tunnelCmd := &cobra.Command{
 		Use:   "tunnel",
-		Short: "Inicia o túnel de áudio via terminal (sem GUI)",
+		Short: "Gerencia o túnel de áudio via terminal (Headless)",
+	}
+
+	// Subcomando: Start
+	startCmd := &cobra.Command{
+		Use:   "start [device_id]",
+		Short: "Inicia o túnel de áudio para um dispositivo específico",
+		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			// Futura integração com internal/audio e Viper
-			fmt.Println("🎧 Iniciando Siren Audio Tunnel no modo CLI (Headless)...")
-			fmt.Println("Pressione Ctrl+C para encerrar.")
+			deviceID := args[0]
+
+			// Inicialização dos componentes do Core
+			store, err := core.NewStore()
+			if err != nil {
+				fmt.Printf("❌ Erro ao inicializar armazenamento: %v\n", err)
+				return
+			}
+
+			engine := core.NewEngine()
+			manager := core.NewManager(store, engine)
+
+			fmt.Printf("🎧 Iniciando túnel Siren para o dispositivo: %s\n", deviceID)
 			
-			// Esse select impede que o programa feche imediatamente.
-			// Útil para processos como servidores ou escutas de áudio contínuas.
-			select {} 
+			if err := manager.StartTunnelToDevice(deviceID); err != nil {
+				fmt.Printf("❌ Erro fatal: %v\n", err)
+				return
+			}
+
+			fmt.Println("🚀 Túnel estabelecido com sucesso!")
+			fmt.Println("📌 Pressione Ctrl+C para encerrar o processo.")
+
+			// Canal para capturar sinais de interrupção (Ctrl+C)
+			sigChan := make(chan os.Signal, 1)
+			signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+			// Bloqueia aqui até receber o sinal
+			<-sigChan
+
+			fmt.Println("\n🛑 Sinal de interrupção recebido. Limpando recursos...")
+			if err := manager.StopCurrentTunnel(); err != nil {
+				fmt.Printf("⚠️ Erro ao encerrar motor de áudio: %v\n", err)
+			}
+			fmt.Println("✅ Siren finalizado. Até logo!")
 		},
 	}
 
-	// Anexa o subcomando ao comando raiz
+	// Subcomando: Stop (Informativo por enquanto)
+	stopCmd := &cobra.Command{
+		Use:   "stop",
+		Short: "Instruções para encerrar o túnel",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Println("ℹ️  No modo CLI atual, o túnel deve ser encerrado com Ctrl+C no terminal de origem.")
+		},
+	}
+
+	// Agrupador de comandos de dispositivos
+	deviceCmd := &cobra.Command{
+		Use:   "device",
+		Short: "Gerencia o inventário de dispositivos",
+	}
+
+	// Subcomando: Device List
+	deviceListCmd := &cobra.Command{
+		Use:   "list",
+		Short: "Lista todos os dispositivos cadastrados",
+		Run: func(cmd *cobra.Command, args []string) {
+			store, _ := core.NewStore()
+			engine := core.NewEngine()
+			manager := core.NewManager(store, engine)
+
+			devices := manager.GetAvailableDevices()
+			if len(devices) == 0 {
+				fmt.Println("📭 Nenhum dispositivo cadastrado.")
+				return
+			}
+
+			fmt.Println("📋 Dispositivos Cadastrados:")
+			fmt.Printf("%-10s %-20s %-15s %-10s\n", "ID", "NOME", "IP", "PLATAFORMA")
+			fmt.Println(strings.Repeat("-", 60))
+			for _, d := range devices {
+				fmt.Printf("%-10s %-20s %-15s %-10s\n", d.ID, d.Name, d.IP, d.Platform)
+			}
+		},
+	}
+
+	// Subcomando: Device Add
+	deviceAddCmd := &cobra.Command{
+		Use:   "add [nome] [ip] [plataforma]",
+		Short: "Cadastra um novo dispositivo",
+		Args:  cobra.ExactArgs(3),
+		Run: func(cmd *cobra.Command, args []string) {
+			name := args[0]
+			ip := args[1]
+			platform := args[2]
+
+			store, _ := core.NewStore()
+			engine := core.NewEngine()
+			manager := core.NewManager(store, engine)
+
+			id, err := manager.AddDevice(name, ip, platform)
+			if err != nil {
+				fmt.Printf("❌ Erro: %v\n", err)
+				return
+			}
+
+			fmt.Printf("✅ Dispositivo '%s' adicionado com sucesso!\n", name)
+			fmt.Printf("🔑 ID Gerado: %s\n", id)
+		},
+	}
+
+	// Subcomando: Device Remove
+	deviceRemoveCmd := &cobra.Command{
+		Use:   "remove [id]",
+		Short: "Remove um dispositivo pelo ID",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			id := args[0]
+
+			store, _ := core.NewStore()
+			engine := core.NewEngine()
+			manager := core.NewManager(store, engine)
+
+			if err := manager.RemoveDevice(id); err != nil {
+				fmt.Printf("❌ Erro ao remover: %v\n", err)
+				return
+			}
+
+			fmt.Printf("🗑️  Dispositivo %s removido.\n", id)
+		},
+	}
+
+	// Organiza a árvore de comandos
+	deviceCmd.AddCommand(deviceListCmd, deviceAddCmd, deviceRemoveCmd)
+	rootCmd.AddCommand(deviceCmd)
+
+	tunnelCmd.AddCommand(startCmd)
+	tunnelCmd.AddCommand(stopCmd)
 	rootCmd.AddCommand(tunnelCmd)
 
 	// Executa o avaliador de comandos do Cobra

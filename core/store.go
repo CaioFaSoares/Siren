@@ -145,3 +145,31 @@ func (s *Store) SaveTunnel(config TunnelConfig) error {
 	s.v.Set("tunnels", tunnels)
 	return s.v.WriteConfig()
 }
+
+// GetDeviceByID busca um dispositivo pelo seu ID
+func (s *Store) GetDeviceByID(id string) (Device, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	devices := s.getDevicesInternal()
+	for _, d := range devices {
+		if d.ID == id {
+			return d, nil
+		}
+	}
+	return Device{}, fmt.Errorf("dispositivo com ID %s não encontrado", id)
+}
+
+// GetTunnelByDeviceID busca a configuração de túnel associada a um dispositivo remoto
+func (s *Store) GetTunnelByDeviceID(deviceID string) (TunnelConfig, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	tunnels := s.getTunnelsInternal()
+	for _, t := range tunnels {
+		if t.RemoteDeviceID == deviceID {
+			return t, nil
+		}
+	}
+	return TunnelConfig{}, fmt.Errorf("configuração de túnel para o dispositivo %s não encontrada", deviceID)
+}
