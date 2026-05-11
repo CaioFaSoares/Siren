@@ -30,16 +30,16 @@ O projeto adota uma arquitetura **Hexagonal (Ports and Adapters)** para garantir
 ### Épico 1: Core de Configuração e Estado
 - **Objetivo:** Persistir dispositivos e preferências sem hardcoding.
 - **Tasks:**
-    - [ ] Implementar CRUD de `Device` no pacote `core`.
-    - [ ] Integrar Viper para salvar `config.yaml` em pastas padrão do SO.
-    - [ ] Criar lógica de detecção automática de IP (local/ZeroTier).
+    - [x] Implementar CRUD de `Device` no pacote `core`.
+    - [x] Integrar Viper para salvar `config.yaml` em pastas padrão do SO.
+    - [x] Criar lógica de detecção automática de IP (local/ZeroTier).
 
 ### Épico 2: Motores de Áudio (Engine)
 - **Objetivo:** Implementar o tunneling real eliminando memory leaks.
 - **Tasks:**
-    - [ ] **Linux (PipeWire):** Implementar motor que captura ID do módulo e executa `pw-cli destroy` no Stop.
-    - [ ] **macOS (Darwin):** Implementar motor que gerencia ciclos de vida dos processos `roc-send/recv` via `os/exec`.
-    - [ ] **Hardware Selection:** Implementar listagem de sinks/sources físicos para roteamento dinâmico.
+    - [x] **Linux (PipeWire):** Implementar motor que captura ID do módulo e executa `pw-cli destroy` no Stop.
+    - [x] **macOS (Darwin):** Implementar motor que gerencia ciclos de vida dos processos `roc-send/recv` via `os/exec`.
+    - [x] **Hardware Selection:** Implementar listagem de sinks/sources físicos para roteamento dinâmico.
 
 ### Épico 3: Modo Daemon e Orquestração
 - **Objetivo:** Permitir que o áudio rode sem janelas abertas.
@@ -63,8 +63,8 @@ O projeto adota uma arquitetura **Hexagonal (Ports and Adapters)** para garantir
 
 ## 5. Roadmap Técnico (Sprints)
 
-1. **Sprint 1 (Fundação):** Finalização do `core/models.go` e persistência com Viper.
-2. **Sprint 2 (Motores):** Implementação do PipeWireEngine e DarwinEngine (Start/Stop limpo).
+1. **Sprint 1 (Fundação):** Finalização do `core/models.go` e persistência com Viper. (CONCLUÍDO)
+2. **Sprint 2 (Motores):** Implementação do PipeWireEngine e DarwinEngine (Start/Stop limpo). (CONCLUÍDO)
 3. **Sprint 3 (CLI/Daemon):** Comandos Cobra funcionais e teste de tunneling via terminal.
 4. **Sprint 4 (GUI):** Desenvolvimento da interface Nuxt e integração de eventos Wails.
 5. **Sprint 5 (Polimento):** Tray icon, notificações de sistema e builds de produção.
