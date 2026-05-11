@@ -1,24 +1,63 @@
-# README
+# 🧜‍♀️ Siren
 
-## About
+**Siren** é uma solução de infraestrutura de áudio "any-to-any" projetada para rotear fluxos sonoros entre diferentes sistemas operacionais (macOS e Linux) com baixa latência, utilizando o protocolo **ROC**.
 
-This is the official Wails Vue-TS template.
+O projeto opera como uma aplicação híbrida: um binário único que atua como **CLI**, **Daemon** (background) e **GUI** (Wails + Nuxt 3).
 
-You can configure the project by editing `wails.json`. More information about the project settings can be found
-here: https://wails.io/docs/reference/project-config
+## 🚀 Funcionalidades Atuais
 
-## Live Development
+- **Core Multiplataforma:** Motor de áudio específico para Linux (PipeWire) e macOS (CoreAudio/ROC).
+- **CLI Robusta:** Gerenciamento de inventário e túneis diretamente pelo terminal.
+- **Persistência:** Armazenamento automático de dispositivos e configurações em `~/.config/siren/config.json`.
+- **Zero Zumbis:** Gerenciamento limpo de processos e módulos, garantindo liberação do hardware ao encerrar.
 
-To run in live development mode, run `wails dev` in the project directory. This will run a Vite development
-server that will provide very fast hot reload of your frontend changes. If you want to develop in a browser
-and have access to your Go methods, there is also a dev server that runs on http://localhost:34115. Connect
-to this in your browser, and you can call your Go code from devtools.
+## 🛠️ Pré-requisitos
 
-## Building
+### Linux
+- **PipeWire** (com módulo ROC instalado)
+- `pw-cli` disponível no PATH
 
-To build a redistributable, production mode package, use `wails build`.
+### macOS
+- **ROC Toolkit** instalado (ex: `brew install roc-toolkit`)
+- Binários `roc-send` e `roc-recv` disponíveis no PATH
 
-## Rodando no Linux
+## 💻 Como Usar (CLI)
 
+### Gerenciar Dispositivos
+```bash
+# Adicionar um novo dispositivo
+go run main.go app.go device add "Meu-Mac" "192.168.1.50" darwin
+
+# Listar dispositivos cadastrados (para obter o ID)
+go run main.go app.go device list
+
+# Remover um dispositivo
+go run main.go app.go device remove <id>
+```
+
+### Iniciar Túnel de Áudio
+```bash
+# Iniciar o roteamento para um dispositivo
+go run main.go app.go tunnel start <id>
+
+# Para parar, basta pressionar Ctrl+C no terminal
+```
+
+## 🏗️ Desenvolvimento
+
+Este projeto utiliza **Wails v2** com **Nuxt 3**.
+
+### Ambiente Nix (Recomendado)
+Se você usa Nix, basta rodar:
+```bash
+nix develop
+```
+
+### Rodar Interface Gráfica (Modo Dev)
+```bash
+# Linux
 wails dev -tags webkit2_41
-go run main.go app.go tunnel
+
+# macOS
+wails dev
+```
