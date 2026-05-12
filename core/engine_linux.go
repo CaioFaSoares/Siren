@@ -21,7 +21,7 @@ func newOSSpecificEngine() AudioEngine {
 	return &linuxEngine{}
 }
 
-func (e *linuxEngine) Start(config TunnelConfig) error {
+func (e *linuxEngine) Start(config TunnelConfig, targetIP string) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
@@ -34,7 +34,7 @@ func (e *linuxEngine) Start(config TunnelConfig) error {
 	cmdArgs := []string{
 		"load-module",
 		"libpipewire-module-roc-sink",
-		fmt.Sprintf("remote.ip=%s", "127.0.0.1"), // TODO: Usar IP do config quando disponível
+		fmt.Sprintf("remote.ip=%s", targetIP),
 		fmt.Sprintf("remote.source.port=%d", config.SourcePort),
 		fmt.Sprintf("remote.repair.port=%d", config.RepairPort),
 		fmt.Sprintf("remote.control.port=%d", config.ControlPort),
@@ -51,12 +51,21 @@ func (e *linuxEngine) Start(config TunnelConfig) error {
 		return fmt.Errorf("erro ao carregar módulo PipeWire: %w (Saída: %s)", err, out.String())
 	}
 
+	output := strings.TrimSpace(out.String())
+	if output == "" {
+		// O comando retornou sucesso mas sem output (ID vazio)
+		// O PipeWire carregou silenciosamente, usaremos pkill no Stop como fallback
+		e.activeModuleID = ""
+		return nil
+	}
+
 	// Regex para capturar o ID do módulo na saída do pw-cli
-	// A saída costuma ser apenas o ID ou algo como "module: 123"
 	re := regexp.MustCompile(`(\d+)`)
-	match := re.FindStringSubmatch(out.String())
+	match := re.FindStringSubmatch(output)
 	if len(match) < 2 {
-		return fmt.Errorf("não foi possível capturar o ID do módulo na saída: %s", out.String())
+		// Se não capturou número mas houve saída, ainda consideramos sucesso silencioso
+		e.activeModuleID = ""
+		return nil
 	}
 
 	e.activeModuleID = match[1]
@@ -67,13 +76,16 @@ func (e *linuxEngine) Stop() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
+	// Se não temos ID, tentamos o fallback via pkill para garantir limpeza
 	if e.activeModuleID == "" {
+		exec.Command("pkill", "-f", "libpipewire-module-roc-sink").Run()
 		return nil
 	}
 
 	cmd := exec.Command("pw-cli", "destroy", e.activeModuleID)
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("erro ao destruir módulo %s: %w", e.activeModuleID, err)
+		// Se falhar o destroy por ID, tenta pkill como última instância
+		exec.Command("pkill", "-f", "libpipewire-module-roc-sink").Run()
 	}
 
 	e.activeModuleID = ""

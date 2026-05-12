@@ -22,7 +22,7 @@ func newOSSpecificEngine() AudioEngine {
 	return &darwinEngine{}
 }
 
-func (e *darwinEngine) Start(config TunnelConfig) error {
+func (e *darwinEngine) Start(config TunnelConfig, targetIP string) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
@@ -34,17 +34,13 @@ func (e *darwinEngine) Start(config TunnelConfig) error {
 	e.cancel = cancel
 
 	// Comando para enviar áudio local para um destino remoto
-	// Ex: roc-send -r rtp+rs8m -p rs8m -i coreaudio -s rtp+rs8m://IP:PORT
 	args := []string{
-		"-r", "rtp+rs8m",
-		"-p", "rs8m",
+		"-s", fmt.Sprintf("rtp+rs8m://%s:%d", targetIP, config.SourcePort),
+		"-r", fmt.Sprintf("rs8m://%s:%d", targetIP, config.RepairPort),
 		"-i", "coreaudio",
-		"-s", fmt.Sprintf("rtp+rs8m://%s:%d", "127.0.0.1", config.SourcePort), // IP fixo para teste, deve vir do device
-		"--source-repair-port", fmt.Sprintf("%d", config.RepairPort),
-		"--source-control-port", fmt.Sprintf("%d", config.ControlPort),
 	}
 
-	// Se houver um ID de node específico, adicionamos (opcional no roc-send)
+	// Se houver um ID de node específico, adicionamos
 	if config.LocalNodeID != "" && config.LocalNodeID != "default" {
 		args = append(args, "-d", config.LocalNodeID)
 	}

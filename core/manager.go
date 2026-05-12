@@ -40,7 +40,7 @@ func (m *Manager) StartTunnelToDevice(deviceID string) error {
 	// se o IP do device tiver mudado (ZeroTier/Local)
 
 	// 3. Acionar a engine
-	if err := m.engine.Start(config); err != nil {
+	if err := m.engine.Start(config, device.IP); err != nil {
 		return fmt.Errorf("erro ao iniciar motor de áudio para %s (%s): %w", device.Name, device.IP, err)
 	}
 

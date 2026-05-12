@@ -3,7 +3,7 @@ package core
 // AudioEngine define o contrato para os motores de áudio específicos de cada SO
 type AudioEngine interface {
 	// Start inicia o roteamento de áudio baseado na configuração do túnel
-	Start(config TunnelConfig) error
+	Start(config TunnelConfig, targetIP string) error
 
 	// Stop encerra o túnel ativo e limpa recursos
 	Stop() error
