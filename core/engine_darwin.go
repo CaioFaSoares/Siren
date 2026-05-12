@@ -33,16 +33,16 @@ func (e *darwinEngine) Start(config TunnelConfig, targetIP string) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	e.cancel = cancel
 
-	// Definir o URI de entrada (ex: coreaudio://default ou coreaudio://45)
-	inputID := "default"
+	// Definir o URI de entrada (ex: coreaudio:// ou coreaudio://45)
+	inputURI := "coreaudio://"
 	if config.LocalNodeID != "" && config.LocalNodeID != "default" {
-		inputID = config.LocalNodeID
+		inputURI = fmt.Sprintf("coreaudio://%s", config.LocalNodeID)
 	}
 
 	args := []string{
 		"-s", fmt.Sprintf("rtp+rs8m://%s:%d", targetIP, config.SourcePort),
 		"-r", fmt.Sprintf("rs8m://%s:%d", targetIP, config.RepairPort),
-		"-i", fmt.Sprintf("coreaudio://%s", inputID),
+		"-i", inputURI,
 	}
 
 	cmd := exec.CommandContext(ctx, "roc-send", args...)
