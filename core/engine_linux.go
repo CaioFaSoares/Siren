@@ -37,6 +37,10 @@ func (e *linuxEngine) Start(config TunnelConfig, targetIP string) error {
 		cmd.Stdout = &out
 		cmd.Stderr = &out
 
+		if Verbose {
+			fmt.Printf("🔍 [PipeWire Exec] %s\n", strings.Join(cmd.Args, " "))
+		}
+
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("erro ao carregar módulo %s: %w (Saída: %s)", args[1], err, out.String())
 		}

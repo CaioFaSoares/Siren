@@ -1,5 +1,8 @@
 package core
 
+// Verbose controla a impressão de logs detalhados (ex: comandos subjacentes)
+var Verbose bool = false
+
 // AudioEngine define o contrato para os motores de áudio específicos de cada SO
 type AudioEngine interface {
 	// Start inicia o roteamento de áudio baseado na configuração do túnel

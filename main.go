@@ -42,12 +42,14 @@ func main() {
 	var localNodeOverride string
 	var remoteNodeOverride string
 	var tunnelMode string
+	var verboseFlag bool
 
 	startCmd := &cobra.Command{
 		Use:   "start [device_id]",
 		Short: "Inicia o túnel de áudio para um dispositivo específico",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
+			core.Verbose = verboseFlag
 			deviceID := args[0]
 
 			// Inicialização dos componentes do Core
@@ -240,6 +242,7 @@ func main() {
 	startCmd.Flags().StringVarP(&localNodeOverride, "node", "n", "", "ID do node de áudio local a ser usado (Source)")
 	startCmd.Flags().StringVarP(&remoteNodeOverride, "remote-node", "r", "", "ID do node de áudio remoto a ser usado (Sink)")
 	startCmd.Flags().StringVarP(&tunnelMode, "mode", "m", "duplex", "Modo do túnel (sender, receiver, duplex)")
+	startCmd.Flags().BoolVarP(&verboseFlag, "verbose", "v", false, "Habilita a verbosidade de logs (comandos rodados por baixo dos panos)")
 	tunnelCmd.AddCommand(startCmd)
 	tunnelCmd.AddCommand(stopCmd)
 	rootCmd.AddCommand(tunnelCmd)
