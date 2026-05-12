@@ -5,7 +5,9 @@ package core
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -13,8 +15,8 @@ import (
 )
 
 type linuxEngine struct {
-	activeModuleIDs []string
-	mu             sync.Mutex
+	cancel context.CancelFunc
+	mu     sync.Mutex
 }
 
 func newOSSpecificEngine() AudioEngine {
@@ -25,73 +27,76 @@ func (e *linuxEngine) Start(config TunnelConfig, targetIP string) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	if len(e.activeModuleIDs) > 0 {
-		return fmt.Errorf("um túnel já está ativo (IDs: %v)", e.activeModuleIDs)
+	if e.cancel != nil {
+		return fmt.Errorf("um túnel já está ativo")
 	}
-	e.activeModuleIDs = []string{}
 
-	// Função interna que injeta o comando no stdin do pw-cli nativamente
-	loadModule := func(module string, argsStr string) error {
-		// O segredo: passamos o comando e na linha de baixo mandamos ele sair (quit)
-		script := fmt.Sprintf("load-module %s %s\nquit\n", module, argsStr)
-		
-		cmd := exec.Command("pw-cli")
-		cmd.Stdin = strings.NewReader(script)
-		
-		var out bytes.Buffer
+	ctx, cancel := context.WithCancel(context.Background())
+	e.cancel = cancel
+
+	cmd := exec.CommandContext(ctx, "pw-cli")
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		e.cancel()
+		e.cancel = nil
+		return fmt.Errorf("erro ao criar pipe para pw-cli: %v", err)
+	}
+
+	var out bytes.Buffer
+	if Verbose {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	} else {
 		cmd.Stdout = &out
 		cmd.Stderr = &out
-
-		if Verbose {
-			fmt.Printf("🔍 [PipeWire Exec] Injetando no pw-cli:\n%s\n", script)
-		}
-
-		err := cmd.Run()
-		output := strings.TrimSpace(out.String())
-
-		if Verbose && output != "" {
-			fmt.Printf("📄 [PipeWire Output] %s\n", output)
-		}
-
-		if err != nil {
-			return fmt.Errorf("falha ao rodar pw-cli: %w, saída: %s", err, output)
-		}
-
-		// Captura o ID numérico que o pw-cli devolve
-		re := regexp.MustCompile(`(\d+)`)
-		match := re.FindStringSubmatch(output)
-		if len(match) > 1 {
-			e.activeModuleIDs = append(e.activeModuleIDs, match[1])
-			return nil
-		}
-
-		return fmt.Errorf("o PipeWire recusou o módulo. Saída: %s", output)
 	}
 
-	// 1. Iniciar Roteamento SENDER (Linux -> Mac)
+	if err := cmd.Start(); err != nil {
+		e.cancel()
+		e.cancel = nil
+		return fmt.Errorf("erro ao iniciar processo pw-cli: %v", err)
+	}
+
+	// 1. Roteamento SENDER (Linux -> Mac)
 	if config.Mode == ModeSender || config.Mode == ModeDuplex {
 		argsStr := fmt.Sprintf("remote.ip=%s remote.source.port=%d remote.repair.port=%d fec.code=rs8m sink.name=Siren_Audio", targetIP, config.RxSourcePort, config.RxRepairPort)
 		if config.RemoteNodeID != "" && config.RemoteNodeID != "default" {
 			argsStr += fmt.Sprintf(" node.target=%s", config.RemoteNodeID)
 		}
-		if err := loadModule("libpipewire-module-roc-sink", argsStr); err != nil {
-			e.Stop() // Limpa se o primeiro carregou mas o segundo falhar
-			return fmt.Errorf("erro no envio (sink): %v", err)
+		cmdStr := fmt.Sprintf("load-module libpipewire-module-roc-sink %s\n", argsStr)
+		if Verbose {
+			fmt.Printf("🔍 [PipeWire Exec] Injetando no pw-cli:\n%s", cmdStr)
 		}
+		fmt.Fprintf(stdin, "%s", cmdStr)
 	}
 
-	// 2. Iniciar Roteamento RECEIVER (Mac -> Linux)
+	// 2. Roteamento RECEIVER (Mac -> Linux)
 	if config.Mode == ModeReceiver || config.Mode == ModeDuplex {
-		// O uso das aspas duplas ao redor do source.props é vital para o parser do PipeWire
 		argsStr := fmt.Sprintf(`local.ip=0.0.0.0 local.source.port=%d local.repair.port=%d fec.code=rs8m source.name=Siren_Mic source.props="{ media.class=Audio/Source node.description=Siren_Incoming_Audio }"`, config.SourcePort, config.RepairPort)
 		if config.LocalNodeID != "" && config.LocalNodeID != "default" {
 			argsStr += fmt.Sprintf(" node.target=%s", config.LocalNodeID)
 		}
-		if err := loadModule("libpipewire-module-roc-source", argsStr); err != nil {
-			e.Stop()
-			return fmt.Errorf("erro na recepção (source): %v", err)
+		cmdStr := fmt.Sprintf("load-module libpipewire-module-roc-source %s\n", argsStr)
+		if Verbose {
+			fmt.Printf("🔍 [PipeWire Exec] Injetando no pw-cli:\n%s", cmdStr)
 		}
+		fmt.Fprintf(stdin, "%s", cmdStr)
 	}
+
+	// IMPORTANTE: Não enviamos "quit" e não damos stdin.Close(). 
+	// O pipe aberto é o que mantém o pw-cli rodando e os módulos ativos no sistema.
+
+	// Monitória assíncrona
+	go func() {
+		err := cmd.Wait()
+		if err != nil && ctx.Err() == nil {
+			if !Verbose {
+				fmt.Printf("Aviso: pw-cli encerrou inesperadamente: %v\nSaída: %s\n", err, out.String())
+			} else {
+				fmt.Printf("Aviso: pw-cli encerrou inesperadamente: %v\n", err)
+			}
+		}
+	}()
 
 	return nil
 }
@@ -100,24 +105,9 @@ func (e *linuxEngine) Stop() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	var errors []string
-
-	if len(e.activeModuleIDs) > 0 {
-		for _, id := range e.activeModuleIDs {
-			cmd := exec.Command("pw-cli", "destroy", id)
-			if err := cmd.Run(); err != nil {
-				errors = append(errors, fmt.Sprintf("erro ao destruir módulo ID %s: %v", id, err))
-			}
-		}
-		e.activeModuleIDs = nil
-	}
-
-	// Fallback de segurança: Derrubar qualquer módulo órfão
-	exec.Command("pkill", "-f", "libpipewire-module-roc-sink").Run()
-	exec.Command("pkill", "-f", "libpipewire-module-roc-source").Run()
-
-	if len(errors) > 0 {
-		return fmt.Errorf(strings.Join(errors, "; "))
+	if e.cancel != nil {
+		e.cancel() // O cancelamento mata o pw-cli, e o PipeWire remove os módulos automaticamente.
+		e.cancel = nil
 	}
 
 	return nil
