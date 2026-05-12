@@ -33,13 +33,15 @@ func (e *darwinEngine) Start(config TunnelConfig, targetIP string) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	e.cancel = cancel
 
-	// Definir o URI de entrada (ex: coreaudio:// ou coreaudio://45)
-	inputURI := "coreaudio://"
+	// Definir o URI de entrada. O ROC no macOS geralmente espera coreaudio://default
+	// para o dispositivo padrão. Se falhar, precisaremos de um nome específico.
+	inputURI := "coreaudio://default"
 	if config.LocalNodeID != "" && config.LocalNodeID != "default" {
 		inputURI = fmt.Sprintf("coreaudio://%s", config.LocalNodeID)
 	}
 
 	args := []string{
+		"-vv", // Aumentar verbosidade para diagnóstico
 		"-s", fmt.Sprintf("rtp+rs8m://%s:%d", targetIP, config.SourcePort),
 		"-r", fmt.Sprintf("rs8m://%s:%d", targetIP, config.RepairPort),
 		"-i", inputURI,
