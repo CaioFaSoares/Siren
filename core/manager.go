@@ -81,7 +81,7 @@ func (m *Manager) AddDevice(name, ip string, platform string) (string, error) {
 		Name:     name,
 		IP:       ip,
 		Platform: p,
-		LastSeen: time.Now(),
+		LastSeen: time.Now().Format(time.RFC3339),
 	}
 
 	// Salvar o dispositivo
