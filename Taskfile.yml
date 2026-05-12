@@ -3,11 +3,16 @@ version: '3'
 tasks:
   dev:frontend:
     dir: ./frontend
+    env:
+      VITE_NODE_SERVER_BIND_ADDRESS: 127.0.0.1
     cmds:
       - npm run dev -- --port 9245 --host 127.0.0.1
 
   build:
     cmds:
+      # Garante que a pasta de assets exista para o Go embed
+      - mkdir -p frontend/.output/public
+      - touch frontend/.output/public/placeholder.txt
       - go build -o build/bin/siren .
 
   run:

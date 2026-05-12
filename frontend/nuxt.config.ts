@@ -1,18 +1,26 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
+  srcDir: 'app',
   modules: [
     '@nuxt/eslint',
-    '@nuxt/ui'
+    '@nuxt/ui',
+    '@pinia/nuxt'
   ],
+  routeRules: {
+    '/': { ssr: false }
+  },
+  future: {
+    compatibilityVersion: 4
+  },
 
   devtools: {
     enabled: true
   },
-
-  css: ['~/assets/css/main.css'],
-
-  routeRules: {
-    '/': { prerender: true }
+  
+  devServer: {
+    port: 9245,
+    host: '127.0.0.1',
+    loadingScreen: false
   },
 
   compatibilityDate: '2025-01-15',
