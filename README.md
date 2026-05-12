@@ -1,63 +1,72 @@
 # 🧜‍♀️ Siren
 
-**Siren** é uma solução de infraestrutura de áudio "any-to-any" projetada para rotear fluxos sonoros entre diferentes sistemas operacionais (macOS e Linux) com baixa latência, utilizando o protocolo **ROC**.
+**Siren** é uma ferramenta premium de roteamento de áudio "any-to-any", projetada para conectar fluxos sonoros entre **macOS** e **Linux** com ultra-baixa latência e correção de erros, utilizando o protocolo **ROC**.
 
-O projeto opera como uma aplicação híbrida: um binário único que atua como **CLI**, **Daemon** (background) e **GUI** (Wails + Nuxt 3).
+Seja para usar o microfone de um Mac no seu setup Linux ou ouvir o áudio do seu servidor de mídia nos alto-falantes de outro computador, o Siren orquestra tudo de forma transparente.
 
-## 🚀 Funcionalidades Atuais
+## ✨ Destaques
 
-- **Core Multiplataforma:** Motor de áudio específico para Linux (PipeWire) e macOS (CoreAudio/ROC).
-- **CLI Robusta:** Gerenciamento de inventário e túneis diretamente pelo terminal.
-- **Persistência:** Armazenamento automático de dispositivos e configurações em `~/.config/siren/config.json`.
-- **Zero Zumbis:** Gerenciamento limpo de processos e módulos, garantindo liberação do hardware ao encerrar.
+- **Modo Duplex:** Envie e receba áudio simultaneamente (Bidirecional).
+- **Engine Híbrida:** 
+  - **Linux:** Integração profunda com **PipeWire** via `pw-cli`, garantindo que os módulos nunca sumam do sistema.
+  - **macOS:** Orquestração de processos `roc-send` e `roc-recv` para máxima compatibilidade.
+- **Abstração de Nodes:** Escolha exatamente qual microfone (Source) enviar e em qual alto-falante (Sink) receber.
+- **CLI & GUI:** Funciona como um utilitário de terminal poderoso ou uma aplicação visual moderna (Wails + Nuxt 3).
+- **Persistência Inteligente:** Suas configurações de dispositivos e túneis são salvas automaticamente via Viper.
 
 ## 🛠️ Pré-requisitos
 
-### Linux
-- **PipeWire** (com módulo ROC instalado)
-- `pw-cli` disponível no PATH
+### 🐧 Linux
+- **PipeWire** (com o plugin ROC instalado: `pipewire-module-roc`)
+- `pw-cli` disponível no seu PATH.
 
-### macOS
-- **ROC Toolkit** instalado (ex: `brew install roc-toolkit`)
-- Binários `roc-send` e `roc-recv` disponíveis no PATH
+### 🍎 macOS
+- **ROC Toolkit** instalado (via Homebrew: `brew install roc-toolkit`).
+- Binários `roc-send` e `roc-recv` disponíveis no seu PATH.
 
-## 💻 Como Usar (CLI)
+## 💻 Uso via CLI
 
-### Gerenciar Dispositivos
+O Siren agora possui binários separados para CLI e GUI. 
+
+### Gerenciar Inventário
 ```bash
-# Adicionar um novo dispositivo
-go run main.go app.go device add "Meu-Mac" "192.168.1.50" darwin
+# Se estiver usando o binário compilado:
+./build/bin/siren-cli device list
 
-# Listar dispositivos cadastrados (para obter o ID)
-go run main.go app.go device list
-
-# Remover um dispositivo
-go run main.go app.go device remove <id>
+# Adicionar um novo computador
+./build/bin/siren-cli device add "MacBook-Pro" "192.168.1.50" darwin
 ```
 
-### Iniciar Túnel de Áudio
+### Roteamento de Áudio (Túnel)
 ```bash
-# Iniciar o roteamento para um dispositivo
-go run main.go app.go tunnel start <id>
-
-# Para parar, basta pressionar Ctrl+C no terminal
+# Iniciar túnel bidirecional (Duplex) para um dispositivo
+./build/bin/siren-cli tunnel start <device_id> --mode duplex
 ```
 
 ## 🏗️ Desenvolvimento
 
-Este projeto utiliza **Wails v2** com **Nuxt 3**.
+Este projeto é um monorepo que separa a lógica de interface (GUI) da lógica de terminal (CLI).
 
-### Ambiente Nix (Recomendado)
-Se você usa Nix, basta rodar:
+### Ambiente Nix
 ```bash
 nix develop
 ```
 
-### Rodar Interface Gráfica (Modo Dev)
+### Compilar CLI
 ```bash
-# Linux
-wails dev -tags webkit2_41
-
-# macOS
-wails dev
+go build -o build/bin/siren-cli ./cmd/siren-cli
 ```
+
+### Rodar GUI em Modo Dev
+```bash
+# Compilar e rodar com hot-reload (Linux com suporte a WebKit)
+wails dev -tags webkit2_41
+```
+
+### Compilar GUI (Produção)
+```bash
+wails build -tags webkit2_41
+```
+
+---
+*Desenvolvido com ❤️ para audiófilos e adeptos de multisetup.*
