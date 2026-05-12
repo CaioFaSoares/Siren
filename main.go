@@ -39,6 +39,7 @@ func main() {
 	}
 
 	// Subcomando: Start
+	var localNodeOverride string
 	startCmd := &cobra.Command{
 		Use:   "start [device_id]",
 		Short: "Inicia o túnel de áudio para um dispositivo específico",
@@ -56,9 +57,18 @@ func main() {
 			engine := core.NewEngine()
 			manager := core.NewManager(store, engine)
 
+			// Buscar a configuração de túnel
+			config, err := store.GetTunnelByDeviceID(deviceID)
+			if err == nil && localNodeOverride != "" {
+				config.LocalNodeID = localNodeOverride
+				fmt.Printf("🎯 Usando node local específico: %s\n", localNodeOverride)
+			}
+
 			fmt.Printf("🎧 Iniciando túnel Siren para o dispositivo: %s\n", deviceID)
 			
-			if err := manager.StartTunnelToDevice(deviceID); err != nil {
+			// Acionar a engine diretamente com o config modificado se necessário
+			device, _ := store.GetDeviceByID(deviceID)
+			if err := engine.Start(config, device.IP); err != nil {
 				fmt.Printf("❌ Erro fatal: %v\n", err)
 				return
 			}
@@ -214,6 +224,7 @@ func main() {
 	deviceCmd.AddCommand(deviceListCmd, deviceAddCmd, deviceRemoveCmd)
 	rootCmd.AddCommand(deviceCmd)
 
+	startCmd.Flags().StringVarP(&localNodeOverride, "node", "n", "", "ID do node de áudio local a ser usado")
 	tunnelCmd.AddCommand(startCmd)
 	tunnelCmd.AddCommand(stopCmd)
 	rootCmd.AddCommand(tunnelCmd)
