@@ -33,16 +33,16 @@ func (e *darwinEngine) Start(config TunnelConfig, targetIP string) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	e.cancel = cancel
 
-	// Comando para enviar áudio local para um destino remoto
+	// Definir o URI de entrada (ex: coreaudio://default ou coreaudio://45)
+	inputID := "default"
+	if config.LocalNodeID != "" && config.LocalNodeID != "default" {
+		inputID = config.LocalNodeID
+	}
+
 	args := []string{
 		"-s", fmt.Sprintf("rtp+rs8m://%s:%d", targetIP, config.SourcePort),
 		"-r", fmt.Sprintf("rs8m://%s:%d", targetIP, config.RepairPort),
-		"-i", "coreaudio",
-	}
-
-	// Se houver um ID de node específico, adicionamos
-	if config.LocalNodeID != "" && config.LocalNodeID != "default" {
-		args = append(args, "-d", config.LocalNodeID)
+		"-i", fmt.Sprintf("coreaudio://%s", inputID),
 	}
 
 	cmd := exec.CommandContext(ctx, "roc-send", args...)
@@ -81,9 +81,9 @@ func (e *darwinEngine) GetOutputs() ([]AudioNode, error) {
 func (e *darwinEngine) listDevices(binary string) ([]AudioNode, error) {
 	// O ROC lista dispositivos usando --list-devices
 	// roc-send -i coreaudio --list-devices
-	cmd := exec.Command(binary, "-i", "coreaudio", "--list-devices")
+	cmd := exec.Command(binary, "-i", "coreaudio://", "--list-devices")
 	if binary == "roc-recv" {
-		cmd = exec.Command(binary, "-o", "coreaudio", "--list-devices")
+		cmd = exec.Command(binary, "-o", "coreaudio://", "--list-devices")
 	}
 
 	var out bytes.Buffer
