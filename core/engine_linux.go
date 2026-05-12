@@ -54,19 +54,11 @@ func (e *linuxEngine) Start(config TunnelConfig, targetIP string) error {
 
 	// ModeSender ou Duplex: Linux -> Mac (Audio)
 	if config.Mode == ModeSender || config.Mode == ModeDuplex {
-		cmdArgs := []string{
-			"load-module",
-			"libpipewire-module-roc-sink",
-			fmt.Sprintf("remote.ip=%s", targetIP),
-			fmt.Sprintf("remote.source.port=%d", config.RxSourcePort),
-			fmt.Sprintf("remote.repair.port=%d", config.RxRepairPort),
-			"fec.code=rs8m",
-			"sink.name=Siren_Audio",
-		}
-		
+		argsStr := fmt.Sprintf("remote.ip=%s remote.source.port=%d remote.repair.port=%d fec.code=rs8m sink.name=Siren_Audio", targetIP, config.RxSourcePort, config.RxRepairPort)
 		if config.RemoteNodeID != "" && config.RemoteNodeID != "default" {
-			cmdArgs = append(cmdArgs, fmt.Sprintf("node.target=%s", config.RemoteNodeID))
+			argsStr += fmt.Sprintf(" node.target=%s", config.RemoteNodeID)
 		}
+		cmdArgs := []string{"load-module", "libpipewire-module-roc-sink", argsStr}
 
 		if err := loadModule(cmdArgs); err != nil {
 			return err
@@ -75,20 +67,11 @@ func (e *linuxEngine) Start(config TunnelConfig, targetIP string) error {
 
 	// ModeReceiver ou Duplex: Mac -> Linux (Microfone)
 	if config.Mode == ModeReceiver || config.Mode == ModeDuplex {
-		cmdArgs := []string{
-			"load-module",
-			"libpipewire-module-roc-source",
-			"local.ip=0.0.0.0",
-			fmt.Sprintf("local.source.port=%d", config.SourcePort),
-			fmt.Sprintf("local.repair.port=%d", config.RepairPort),
-			"fec.code=rs8m",
-			"source.name=Siren_Mic",
-			`source.props={ media.class=Audio/Source node.description=Siren_Incoming_Audio }`,
-		}
-		
+		argsStr := fmt.Sprintf("local.ip=0.0.0.0 local.source.port=%d local.repair.port=%d fec.code=rs8m source.name=Siren_Mic source.props={media.class=Audio/Source node.description=Siren_Incoming_Audio}", config.SourcePort, config.RepairPort)
 		if config.LocalNodeID != "" && config.LocalNodeID != "default" {
-			cmdArgs = append(cmdArgs, fmt.Sprintf("node.target=%s", config.LocalNodeID))
+			argsStr += fmt.Sprintf(" node.target=%s", config.LocalNodeID)
 		}
+		cmdArgs := []string{"load-module", "libpipewire-module-roc-source", argsStr}
 
 		if err := loadModule(cmdArgs); err != nil {
 			return err
