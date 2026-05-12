@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"fmt"
+	"siren/core"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -14,11 +15,21 @@ import (
 var assets embed.FS
 
 func main() {
-	// Cria uma instância da estrutura da aplicação
-	app := NewApp()
+	// Inicializa o núcleo do Siren (Persistência e Motor de Áudio)
+	store, err := core.NewStore()
+	if err != nil {
+		fmt.Printf("Erro crítico ao carregar configurações: %v\n", err)
+		return
+	}
+
+	engine := core.NewEngine()
+	manager := core.NewManager(store, engine)
+
+	// Cria uma instância da estrutura da aplicação com o orquestrador injetado
+	app := NewApp(manager)
 
 	// Cria a aplicação com as opções do Wails
-	err := wails.Run(&options.App{
+	err = wails.Run(&options.App{
 		Title:  "Siren",
 		Width:  1024,
 		Height: 768,
