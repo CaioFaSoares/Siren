@@ -13,7 +13,7 @@ import (
 )
 
 type linuxEngine struct {
-	activeModuleID string
+	activeModuleIDs []string
 	mu             sync.Mutex
 }
 
@@ -25,50 +25,76 @@ func (e *linuxEngine) Start(config TunnelConfig, targetIP string) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	if e.activeModuleID != "" {
-		return fmt.Errorf("um túnel já está ativo (ID: %s)", e.activeModuleID)
+	if len(e.activeModuleIDs) > 0 {
+		return fmt.Errorf("um túnel já está ativo (IDs: %v)", e.activeModuleIDs)
 	}
 
-	// Comando para carregar o módulo ROC Sink (envio)
-	// No PipeWire, carregamos libpipewire-module-roc-sink
-	cmdArgs := []string{
-		"load-module",
-		"libpipewire-module-roc-sink",
-		fmt.Sprintf("remote.ip=%s", targetIP),
-		fmt.Sprintf("remote.source.port=%d", config.SourcePort),
-		fmt.Sprintf("remote.repair.port=%d", config.RepairPort),
-		fmt.Sprintf("remote.control.port=%d", config.ControlPort),
-		"sink.name=Siren-Sink",
-		"node.description=Siren Audio Tunnel",
-	}
+	e.activeModuleIDs = []string{}
 
-	cmd := exec.Command("pw-cli", cmdArgs...)
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &out
+	loadModule := func(args []string) error {
+		cmd := exec.Command("pw-cli", args...)
+		var out bytes.Buffer
+		cmd.Stdout = &out
+		cmd.Stderr = &out
 
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("erro ao carregar módulo PipeWire: %w (Saída: %s)", err, out.String())
-	}
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("erro ao carregar módulo %s: %w (Saída: %s)", args[1], err, out.String())
+		}
 
-	output := strings.TrimSpace(out.String())
-	if output == "" {
-		// O comando retornou sucesso mas sem output (ID vazio)
-		// O PipeWire carregou silenciosamente, usaremos pkill no Stop como fallback
-		e.activeModuleID = ""
+		output := strings.TrimSpace(out.String())
+		if output != "" {
+			re := regexp.MustCompile(`(\d+)`)
+			match := re.FindStringSubmatch(output)
+			if len(match) >= 2 {
+				e.activeModuleIDs = append(e.activeModuleIDs, match[1])
+			}
+		}
 		return nil
 	}
 
-	// Regex para capturar o ID do módulo na saída do pw-cli
-	re := regexp.MustCompile(`(\d+)`)
-	match := re.FindStringSubmatch(output)
-	if len(match) < 2 {
-		// Se não capturou número mas houve saída, ainda consideramos sucesso silencioso
-		e.activeModuleID = ""
-		return nil
+	// ModeSender ou Duplex: Linux -> Mac (Audio)
+	if config.Mode == ModeSender || config.Mode == ModeDuplex {
+		cmdArgs := []string{
+			"load-module",
+			"libpipewire-module-roc-sink",
+			fmt.Sprintf("remote.ip=%s", targetIP),
+			fmt.Sprintf("remote.source.port=%d", config.RxSourcePort),
+			fmt.Sprintf("remote.repair.port=%d", config.RxRepairPort),
+			"fec.code=rs8m",
+			"sink.name=Siren_Audio",
+		}
+		
+		if config.RemoteNodeID != "" && config.RemoteNodeID != "default" {
+			cmdArgs = append(cmdArgs, fmt.Sprintf("node.target=%s", config.RemoteNodeID))
+		}
+
+		if err := loadModule(cmdArgs); err != nil {
+			return err
+		}
 	}
 
-	e.activeModuleID = match[1]
+	// ModeReceiver ou Duplex: Mac -> Linux (Microfone)
+	if config.Mode == ModeReceiver || config.Mode == ModeDuplex {
+		cmdArgs := []string{
+			"load-module",
+			"libpipewire-module-roc-source",
+			"local.ip=0.0.0.0",
+			fmt.Sprintf("local.source.port=%d", config.SourcePort),
+			fmt.Sprintf("local.repair.port=%d", config.RepairPort),
+			"fec.code=rs8m",
+			"source.name=Siren_Mic",
+			`source.props={ media.class=Audio/Source node.description=Siren_Incoming_Audio }`,
+		}
+		
+		if config.LocalNodeID != "" && config.LocalNodeID != "default" {
+			cmdArgs = append(cmdArgs, fmt.Sprintf("node.target=%s", config.LocalNodeID))
+		}
+
+		if err := loadModule(cmdArgs); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -76,19 +102,26 @@ func (e *linuxEngine) Stop() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	// Se não temos ID, tentamos o fallback via pkill para garantir limpeza
-	if e.activeModuleID == "" {
-		exec.Command("pkill", "-f", "libpipewire-module-roc-sink").Run()
-		return nil
+	var errors []string
+
+	if len(e.activeModuleIDs) > 0 {
+		for _, id := range e.activeModuleIDs {
+			cmd := exec.Command("pw-cli", "destroy", id)
+			if err := cmd.Run(); err != nil {
+				errors = append(errors, fmt.Sprintf("erro ao destruir módulo ID %s: %v", id, err))
+			}
+		}
+		e.activeModuleIDs = nil
 	}
 
-	cmd := exec.Command("pw-cli", "destroy", e.activeModuleID)
-	if err := cmd.Run(); err != nil {
-		// Se falhar o destroy por ID, tenta pkill como última instância
-		exec.Command("pkill", "-f", "libpipewire-module-roc-sink").Run()
+	// Fallback de segurança: Derrubar qualquer módulo órfão
+	exec.Command("pkill", "-f", "libpipewire-module-roc-sink").Run()
+	exec.Command("pkill", "-f", "libpipewire-module-roc-source").Run()
+
+	if len(errors) > 0 {
+		return fmt.Errorf(strings.Join(errors, "; "))
 	}
 
-	e.activeModuleID = ""
 	return nil
 }
 

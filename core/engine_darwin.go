@@ -32,40 +32,53 @@ func (e *darwinEngine) Start(config TunnelConfig, targetIP string) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	e.cancel = cancel
 
-	// Tentar resolver o nome real do dispositivo padrão se LocalNodeID for "default" ou vazio
-	inputURI := "coreaudio://default"
-	if config.LocalNodeID != "" && config.LocalNodeID != "default" {
-		inputURI = fmt.Sprintf("coreaudio://%s", config.LocalNodeID)
-	} else {
-		// Busca a lista de dispositivos para encontrar qual é o padrão
-		nodes, err := e.listDevices("roc-send")
-		if err == nil {
-			for _, n := range nodes {
-				if n.IsDefault {
-					inputURI = fmt.Sprintf("coreaudio://%s", n.ID)
-					break
-				}
+	// Montar argumentos para roc-send (Transmissão: Mac -> Linux)
+	if config.Mode == ModeSender || config.Mode == ModeDuplex {
+		sendArgs := []string{
+			"-vv",
+			"-s", fmt.Sprintf("rtp+rs8m://%s:%d", targetIP, config.SourcePort),
+			"-r", fmt.Sprintf("rs8m://%s:%d", targetIP, config.RepairPort),
+		}
+
+		// Se houver um ID específico, adiciona a flag -i. Caso contrário, omite para usar o padrão do ROC sem crash.
+		if config.LocalNodeID != "" && config.LocalNodeID != "default" {
+			sendArgs = append(sendArgs, "-i", fmt.Sprintf("coreaudio://%s", config.LocalNodeID))
+		}
+
+		sendCmd := exec.CommandContext(ctx, "roc-send", sendArgs...)
+		
+		go func() {
+			var stderr bytes.Buffer
+			sendCmd.Stderr = &stderr
+			if err := sendCmd.Run(); err != nil && ctx.Err() == nil {
+				fmt.Printf("Erro no processo roc-send: %v (Stderr: %s)\n", err, stderr.String())
 			}
-		}
+		}()
 	}
 
-	args := []string{
-		"-vv", // Aumentar verbosidade para diagnóstico
-		"-s", fmt.Sprintf("rtp+rs8m://%s:%d", targetIP, config.SourcePort),
-		"-r", fmt.Sprintf("rs8m://%s:%d", targetIP, config.RepairPort),
-		"-i", inputURI,
-	}
-
-	cmd := exec.CommandContext(ctx, "roc-send", args...)
-
-	// Rodar em background
-	go func() {
-		var stderr bytes.Buffer
-		cmd.Stderr = &stderr
-		if err := cmd.Run(); err != nil && ctx.Err() == nil {
-			fmt.Printf("Erro no processo roc-send: %v (Stderr: %s)\n", err, stderr.String())
+	// Montar argumentos para roc-recv (Recepção: Linux -> Mac)
+	if config.Mode == ModeReceiver || config.Mode == ModeDuplex {
+		recvArgs := []string{
+			"-vv",
+			"-s", fmt.Sprintf("rtp+rs8m://0.0.0.0:%d", config.RxSourcePort),
+			"-r", fmt.Sprintf("rs8m://0.0.0.0:%d", config.RxRepairPort),
 		}
-	}()
+
+		// Se houver um ID de output específico, adiciona a flag -o.
+		if config.RemoteNodeID != "" && config.RemoteNodeID != "default" {
+			recvArgs = append(recvArgs, "-o", fmt.Sprintf("coreaudio://%s", config.RemoteNodeID))
+		}
+
+		recvCmd := exec.CommandContext(ctx, "roc-recv", recvArgs...)
+
+		go func() {
+			var stderr bytes.Buffer
+			recvCmd.Stderr = &stderr
+			if err := recvCmd.Run(); err != nil && ctx.Err() == nil {
+				fmt.Printf("Erro no processo roc-recv: %v (Stderr: %s)\n", err, stderr.String())
+			}
+		}()
+	}
 
 	return nil
 }

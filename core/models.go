@@ -33,16 +33,29 @@ type AudioNode struct {
 	IsDefault bool     `json:"is_default"`
 }
 
+type TunnelMode string
+
+const (
+	ModeSender   TunnelMode = "sender"   // Envia áudio local para remoto
+	ModeReceiver TunnelMode = "receiver" // Recebe áudio remoto para local
+	ModeDuplex   TunnelMode = "duplex"   // Envia e recebe simultaneamente
+)
+
 // TunnelConfig contém as configurações específicas do protocolo ROC para o túnel
 type TunnelConfig struct {
 	RemoteDeviceID string `json:"remote_device_id" mapstructure:"remote_device_id"`
 	LocalNodeID    string `json:"local_node_id" mapstructure:"local_node_id"`
 	RemoteNodeID   string `json:"remote_node_id" mapstructure:"remote_node_id"`
+	Mode           TunnelMode `json:"mode" mapstructure:"mode"`
 
-	// ROC Ports
+	// ROC Ports (TX - Transmissão)
 	SourcePort  int `json:"source_port" mapstructure:"source_port"`  // Default: 10001
 	RepairPort  int `json:"repair_port" mapstructure:"repair_port"`  // Default: 10002
 	ControlPort int `json:"control_port" mapstructure:"control_port"` // Default: 10003
+
+	// ROC Ports (RX - Recepção, usados para Duplex)
+	RxSourcePort int `json:"rx_source_port" mapstructure:"rx_source_port"` // Default: 10003
+	RxRepairPort int `json:"rx_repair_port" mapstructure:"rx_repair_port"` // Default: 10004
 
 	Active bool `json:"active" mapstructure:"active"`
 }

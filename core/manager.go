@@ -92,9 +92,12 @@ func (m *Manager) AddDevice(name, ip string, platform string) (string, error) {
 	// Criar e salvar uma configuração de túnel padrão para este dispositivo
 	config := TunnelConfig{
 		RemoteDeviceID: id,
+		Mode:           ModeDuplex,
 		SourcePort:     10001,
 		RepairPort:     10002,
 		ControlPort:    10003,
+		RxSourcePort:   10003,
+		RxRepairPort:   10004,
 		Active:         false,
 	}
 
