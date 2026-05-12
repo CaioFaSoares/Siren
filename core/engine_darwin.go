@@ -83,9 +83,9 @@ func (e *darwinEngine) GetOutputs() ([]AudioNode, error) {
 func (e *darwinEngine) listDevices(binary string) ([]AudioNode, error) {
 	// O ROC lista dispositivos usando --list-devices
 	// roc-send -i coreaudio --list-devices
-	cmd := exec.Command(binary, "-i", "coreaudio://", "--list-devices")
+	cmd := exec.Command(binary, "-i", "coreaudio://default", "--list-devices")
 	if binary == "roc-recv" {
-		cmd = exec.Command(binary, "-o", "coreaudio://", "--list-devices")
+		cmd = exec.Command(binary, "-o", "coreaudio://default", "--list-devices")
 	}
 
 	var out bytes.Buffer

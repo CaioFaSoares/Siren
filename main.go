@@ -166,7 +166,51 @@ func main() {
 		},
 	}
 
+	// Agrupador de comandos de nodes locais
+	nodeCmd := &cobra.Command{
+		Use:   "node",
+		Short: "Gerencia nodes de áudio locais (microfones/alto-falantes)",
+	}
+
+	// Subcomando: Node List
+	nodeListCmd := &cobra.Command{
+		Use:   "list [source|sink]",
+		Short: "Lista nodes de áudio locais",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			nodeType := args[0]
+			store, _ := core.NewStore()
+			engine := core.NewEngine()
+			manager := core.NewManager(store, engine)
+
+			nodes, err := manager.GetLocalNodes(nodeType)
+			if err != nil {
+				fmt.Printf("❌ Erro ao listar nodes: %v\n", err)
+				return
+			}
+
+			if len(nodes) == 0 {
+				fmt.Printf("📭 Nenhum node do tipo '%s' encontrado.\n", nodeType)
+				return
+			}
+
+			fmt.Printf("📋 Nodes Locais (%s):\n", nodeType)
+			fmt.Printf("%-10s %-40s %-10s\n", "ID", "NOME", "PADRÃO")
+			fmt.Println(strings.Repeat("-", 60))
+			for _, n := range nodes {
+				isDefault := ""
+				if n.IsDefault {
+					isDefault = "✅"
+				}
+				fmt.Printf("%-10s %-40s %-10s\n", n.ID, n.Name, isDefault)
+			}
+		},
+	}
+
 	// Organiza a árvore de comandos
+	nodeCmd.AddCommand(nodeListCmd)
+	rootCmd.AddCommand(nodeCmd)
+
 	deviceCmd.AddCommand(deviceListCmd, deviceAddCmd, deviceRemoveCmd)
 	rootCmd.AddCommand(deviceCmd)
 
