@@ -28,60 +28,66 @@ func (e *linuxEngine) Start(config TunnelConfig, targetIP string) error {
 	if len(e.activeModuleIDs) > 0 {
 		return fmt.Errorf("um túnel já está ativo (IDs: %v)", e.activeModuleIDs)
 	}
-
 	e.activeModuleIDs = []string{}
 
-	loadModule := func(args []string) error {
-		cmd := exec.Command("pw-cli", args...)
+	// Função interna que simula o script Bash: echo '...' | pw-cli
+	loadModule := func(module string, argsStr string) error {
+		pipeline := fmt.Sprintf("echo 'load-module %s %s' | pw-cli", module, argsStr)
+		cmd := exec.Command("sh", "-c", pipeline)
+		
 		var out bytes.Buffer
 		cmd.Stdout = &out
 		cmd.Stderr = &out
 
 		if Verbose {
-			fmt.Printf("🔍 [PipeWire Exec] %s\n", strings.Join(cmd.Args, " "))
+			fmt.Printf("🔍 [PipeWire Exec] %s\n", pipeline)
 		}
 
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("erro ao carregar módulo %s: %w (Saída: %s)", args[1], err, out.String())
-		}
-
+		err := cmd.Run()
 		output := strings.TrimSpace(out.String())
+
 		if Verbose && output != "" {
 			fmt.Printf("📄 [PipeWire Output] %s\n", output)
 		}
-		if output != "" {
-			re := regexp.MustCompile(`(\d+)`)
-			match := re.FindStringSubmatch(output)
-			if len(match) >= 2 {
-				e.activeModuleIDs = append(e.activeModuleIDs, match[1])
-			}
+
+		if err != nil {
+			return fmt.Errorf("falha ao rodar shell: %w, saída: %s", err, output)
 		}
-		return nil
+
+		// O pw-cli sempre retorna o ID do módulo quando tem sucesso (ex: "123" ou "module: 123")
+		re := regexp.MustCompile(`(\d+)`)
+		match := re.FindStringSubmatch(output)
+		if len(match) > 1 {
+			e.activeModuleIDs = append(e.activeModuleIDs, match[1])
+			return nil
+		}
+
+		// Se a regex não achou um ID, o módulo não foi carregado. 
+		return fmt.Errorf("o PipeWire recusou o módulo. Saída: %s", output)
 	}
 
-	// ModeSender ou Duplex: Linux -> Mac (Audio)
+	// 1. Iniciar Roteamento SENDER (Linux -> Mac)
 	if config.Mode == ModeSender || config.Mode == ModeDuplex {
 		argsStr := fmt.Sprintf("remote.ip=%s remote.source.port=%d remote.repair.port=%d fec.code=rs8m sink.name=Siren_Audio", targetIP, config.RxSourcePort, config.RxRepairPort)
 		if config.RemoteNodeID != "" && config.RemoteNodeID != "default" {
 			argsStr += fmt.Sprintf(" node.target=%s", config.RemoteNodeID)
 		}
-		cmdArgs := []string{"load-module", "libpipewire-module-roc-sink", argsStr}
-
-		if err := loadModule(cmdArgs); err != nil {
-			return err
+		if err := loadModule("libpipewire-module-roc-sink", argsStr); err != nil {
+			e.Stop() // Limpa se o primeiro carregou mas o segundo falhar
+			return fmt.Errorf("erro no envio (sink): %v", err)
 		}
 	}
 
-	// ModeReceiver ou Duplex: Mac -> Linux (Microfone)
+	// 2. Iniciar Roteamento RECEIVER (Mac -> Linux)
 	if config.Mode == ModeReceiver || config.Mode == ModeDuplex {
-		argsStr := fmt.Sprintf("local.ip=0.0.0.0 local.source.port=%d local.repair.port=%d fec.code=rs8m source.name=Siren_Mic source.props={media.class=Audio/Source node.description=Siren_Incoming_Audio}", config.SourcePort, config.RepairPort)
+		// O uso das aspas duplas ao redor do source.props é vital para o parser do PipeWire
+		argsStr := fmt.Sprintf(`local.ip=0.0.0.0 local.source.port=%d local.repair.port=%d fec.code=rs8m source.name=Siren_Mic source.props="{ media.class=Audio/Source node.description=Siren_Incoming_Audio }"`, config.SourcePort, config.RepairPort)
 		if config.LocalNodeID != "" && config.LocalNodeID != "default" {
 			argsStr += fmt.Sprintf(" node.target=%s", config.LocalNodeID)
 		}
-		cmdArgs := []string{"load-module", "libpipewire-module-roc-source", argsStr}
-
-		if err := loadModule(cmdArgs); err != nil {
-			return err
+		if err := loadModule("libpipewire-module-roc-source", argsStr); err != nil {
+			e.Stop()
+			return fmt.Errorf("erro na recepção (source): %v", err)
 		}
 	}
 
