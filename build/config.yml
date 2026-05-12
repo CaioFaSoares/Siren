@@ -1,0 +1,27 @@
+name: Siren
+description: Siren Audio Tunnel
+version: 0.1.0
+
+dev_mode:
+  root_path: .
+  log_level: info
+  debounce: 500
+  ignore:
+    dir:
+      - .git
+      - node_modules
+      - bin
+      - frontend
+    file:
+      - .DS_Store
+      - .gitignore
+  watched_extension:
+    - "*.go"
+  git_ignore: true
+  executes:
+    - cmd: wails3 task dev:frontend
+      type: background
+    - cmd: wails3 task build
+      type: blocking
+    - cmd: wails3 task run
+      type: primary

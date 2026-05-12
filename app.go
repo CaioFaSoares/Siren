@@ -1,18 +1,16 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"os/exec"
 	stdRuntime "runtime"
 	"siren/core"
 
-	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
-// App struct
+// App struct (v3 Service)
 type App struct {
-	Ctx     context.Context
 	manager *core.Manager
 }
 
@@ -21,12 +19,6 @@ func NewApp(manager *core.Manager) *App {
 	return &App{
 		manager: manager,
 	}
-}
-
-// startup is called when the app starts. The context is saved
-// so we can call the runtime methods
-func (a *App) startup(ctx context.Context) {
-	a.Ctx = ctx
 }
 
 // GetDevices retorna a lista de dispositivos cadastrados no orquestrador
@@ -90,8 +82,8 @@ func (a *App) StartTunnel(deviceID string, mode string, localNodeID string, remo
 		return err
 	}
 
-	// 5. Emitir evento de reatividade para o frontend
-	wailsRuntime.EventsEmit(a.Ctx, "tunnel-status", true)
+	// 5. Emitir evento de reatividade para o frontend (v3 API corrigida)
+	application.Get().Event.Emit("tunnel-status", true)
 
 	return nil
 }
@@ -102,8 +94,8 @@ func (a *App) StopTunnel() error {
 		return err
 	}
 
-	// Notificar o frontend
-	wailsRuntime.EventsEmit(a.Ctx, "tunnel-status", false)
+	// Notificar o frontend (v3 API corrigida)
+	application.Get().Event.Emit("tunnel-status", false)
 
 	return nil
 }
@@ -125,4 +117,3 @@ func (a *App) CheckSystemRequirements() map[string]bool {
 
 	return res
 }
-

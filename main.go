@@ -5,14 +5,15 @@ import (
 	"fmt"
 	"siren/core"
 
-	"github.com/wailsapp/wails/v2"
-	"github.com/wailsapp/wails/v2/pkg/options"
-	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 // Atualizado para o diretório de build do Nuxt 3
 //go:embed all:frontend/.output/public
 var assets embed.FS
+
+//go:embed build/appicon.png
+var iconData []byte
 
 func main() {
 	// Inicializa o núcleo do Siren (Persistência e Motor de Áudio)
@@ -25,26 +26,54 @@ func main() {
 	engine := core.NewEngine()
 	manager := core.NewManager(store, engine)
 
-	// Cria uma instância da estrutura da aplicação com o orquestrador injetado
-	app := NewApp(manager)
+	// Cria uma instância da estrutura do service com o orquestrador injetado
+	appService := NewApp(manager)
 
-	// Cria a aplicação com as opções do Wails
-	err = wails.Run(&options.App{
-		Title:             "Siren",
-		Width:             1024,
-		Height:            768,
-		HideWindowOnClose: true, // Mantém o app rodando oculto ao fechar
-		AssetServer: &assetserver.Options{
-			Assets: assets,
+	// Inicializa a aplicação Wails v3
+	app := application.New(application.Options{
+		Name:        "Siren",
+		Description: "Siren Audio Tunnel Daemon",
+		Services: []application.Service{
+			application.NewService(appService),
 		},
-		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1},
-		OnStartup:        app.startup,
-		Bind: []interface{}{
-			app, // Vincula os métodos de App.go para o Javascript
+		Assets: application.AssetOptions{
+			Handler: application.AssetFileServerFS(assets),
+		},
+		Mac: application.MacOptions{
+			ApplicationShouldTerminateAfterLastWindowClosed: false,
 		},
 	})
 
+	// Configuração da Janela Principal (v3 API corrigida)
+	window := app.Window.NewWithOptions(application.WebviewWindowOptions{
+		Title:  "Siren",
+		Width:  1024,
+		Height: 768,
+	})
+
+	// Configuração do System Tray Nativo (v3 API corrigida)
+	tray := app.SystemTray.New()
+	tray.SetIcon(iconData)
+
+	// Criação do Menu do Tray
+	trayMenu := app.NewMenu()
+	trayMenu.Add("Mostrar Siren").OnClick(func(ctx *application.Context) {
+		window.Show()
+		window.Focus()
+	})
+	trayMenu.Add("Desconectar Túnel").OnClick(func(ctx *application.Context) {
+		appService.StopTunnel()
+	})
+	trayMenu.AddSeparator()
+	trayMenu.Add("Sair").OnClick(func(ctx *application.Context) {
+		app.Quit()
+	})
+
+	tray.SetMenu(trayMenu)
+
+	// Executa a aplicação
+	err = app.Run()
 	if err != nil {
-		fmt.Println("Erro na inicialização da GUI:", err.Error())
+		fmt.Printf("Erro na execução do Siren: %v\n", err)
 	}
 }

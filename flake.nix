@@ -20,7 +20,6 @@
       # Dependências comuns para todos os ambientes
       commonDeps = with pkgs; [
         go
-        wails
         nodejs_22 
       ];
 
@@ -49,6 +48,8 @@
         # O shellHook também precisa ser condicional.
         # O macOS não precisa (nem deve) exportar variáveis do GTK.
         shellHook = ''
+          export PATH=$PATH:$(go env GOPATH)/bin
+
           ${pkgs.lib.optionalString pkgs.stdenv.isLinux ''
             export LD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath linuxDeps}:$LD_LIBRARY_PATH
             export XDG_DATA_DIRS=${pkgs.gsettings-desktop-schemas}/share/gsettings-schemas/${pkgs.gsettings-desktop-schemas.name}:${pkgs.gtk3}/share/gsettings-schemas/${pkgs.gtk3.name}:$XDG_DATA_DIRS
@@ -58,6 +59,7 @@
           echo "🧜‍♀️ Bem-vindo ao shell de desenvolvimento do Siren!"
           echo "Plataforma: ${if pkgs.stdenv.isDarwin then "macOS" else "Linux"}"
           echo "Go version: $(go version)"
+          echo "Wails: $(command -v wails || command -v wails3 || echo "não encontrado em PATH")"
           echo "========================================="
         '';
       };
