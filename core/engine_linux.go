@@ -30,17 +30,20 @@ func (e *linuxEngine) Start(config TunnelConfig, targetIP string) error {
 	}
 	e.activeModuleIDs = []string{}
 
-	// Função interna que simula o script Bash: echo '...' | pw-cli
+	// Função interna que injeta o comando no stdin do pw-cli nativamente
 	loadModule := func(module string, argsStr string) error {
-		pipeline := fmt.Sprintf("echo 'load-module %s %s' | pw-cli", module, argsStr)
-		cmd := exec.Command("sh", "-c", pipeline)
+		// O segredo: passamos o comando e na linha de baixo mandamos ele sair (quit)
+		script := fmt.Sprintf("load-module %s %s\nquit\n", module, argsStr)
+		
+		cmd := exec.Command("pw-cli")
+		cmd.Stdin = strings.NewReader(script)
 		
 		var out bytes.Buffer
 		cmd.Stdout = &out
 		cmd.Stderr = &out
 
 		if Verbose {
-			fmt.Printf("🔍 [PipeWire Exec] %s\n", pipeline)
+			fmt.Printf("🔍 [PipeWire Exec] Injetando no pw-cli:\n%s\n", script)
 		}
 
 		err := cmd.Run()
@@ -51,10 +54,10 @@ func (e *linuxEngine) Start(config TunnelConfig, targetIP string) error {
 		}
 
 		if err != nil {
-			return fmt.Errorf("falha ao rodar shell: %w, saída: %s", err, output)
+			return fmt.Errorf("falha ao rodar pw-cli: %w, saída: %s", err, output)
 		}
 
-		// O pw-cli sempre retorna o ID do módulo quando tem sucesso (ex: "123" ou "module: 123")
+		// Captura o ID numérico que o pw-cli devolve
 		re := regexp.MustCompile(`(\d+)`)
 		match := re.FindStringSubmatch(output)
 		if len(match) > 1 {
@@ -62,7 +65,6 @@ func (e *linuxEngine) Start(config TunnelConfig, targetIP string) error {
 			return nil
 		}
 
-		// Se a regex não achou um ID, o módulo não foi carregado. 
 		return fmt.Errorf("o PipeWire recusou o módulo. Saída: %s", output)
 	}
 
