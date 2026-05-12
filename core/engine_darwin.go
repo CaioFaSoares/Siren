@@ -33,11 +33,21 @@ func (e *darwinEngine) Start(config TunnelConfig, targetIP string) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	e.cancel = cancel
 
-	// Definir o URI de entrada. O ROC no macOS geralmente espera coreaudio://default
-	// para o dispositivo padrão. Se falhar, precisaremos de um nome específico.
+	// Tentar resolver o nome real do dispositivo padrão se LocalNodeID for "default" ou vazio
 	inputURI := "coreaudio://default"
 	if config.LocalNodeID != "" && config.LocalNodeID != "default" {
 		inputURI = fmt.Sprintf("coreaudio://%s", config.LocalNodeID)
+	} else {
+		// Busca a lista de dispositivos para encontrar qual é o padrão
+		nodes, err := e.listDevices("roc-send")
+		if err == nil {
+			for _, n := range nodes {
+				if n.IsDefault {
+					inputURI = fmt.Sprintf("coreaudio://%s", n.ID)
+					break
+				}
+			}
+		}
 	}
 
 	args := []string{
@@ -81,44 +91,78 @@ func (e *darwinEngine) GetOutputs() ([]AudioNode, error) {
 }
 
 func (e *darwinEngine) listDevices(binary string) ([]AudioNode, error) {
-	// O ROC lista dispositivos usando --list-devices
-	// roc-send -i coreaudio --list-devices
-	cmd := exec.Command(binary, "-i", "coreaudio://default", "--list-devices")
-	if binary == "roc-recv" {
-		cmd = exec.Command(binary, "-o", "coreaudio://default", "--list-devices")
-	}
-
+	// No macOS, o ROC não lista dispositivos de forma confiável via CLI.
+	// Usamos o system_profiler que é nativo e garantido.
+	cmd := exec.Command("system_profiler", "SPAudioDataType")
 	var out bytes.Buffer
 	cmd.Stdout = &out
 
 	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("erro ao listar dispositivos via %s: %w", binary, err)
+		return nil, fmt.Errorf("erro ao executar system_profiler: %w", err)
 	}
 
 	var nodes []AudioNode
 	scanner := bufio.NewScanner(&out)
 	
-	// Exemplo de saída esperada:
-	//   * default (Default)
-	//     45 (Built-in Microphone)
-	
-	re := regexp.MustCompile(`^\s*(\*?\s*)(\S+)\s+\((.+)\)`)
 	nodeType := SourceNode
 	if binary == "roc-recv" {
 		nodeType = SinkNode
 	}
 
+	/*
+	Exemplo de saída:
+        K66:
+          Default Input Device: Yes
+          Input Channels: 2
+	*/
+
+	var currentDeviceName string
+	var isDefault bool
+	var hasInput bool
+	var hasOutput bool
+
 	for scanner.Scan() {
 		line := scanner.Text()
-		match := re.FindStringSubmatch(line)
-		if len(match) > 3 {
-			isDefault := strings.Contains(match[1], "*")
-			id := match[2]
-			name := match[3]
+		trimmed := strings.TrimSpace(line)
 
+		// Detectar nome do dispositivo (termina com :)
+		if strings.HasSuffix(trimmed, ":") && !strings.Contains(trimmed, "Source:") && !strings.Contains(trimmed, "Device:") {
+			// Salvar dispositivo anterior
+			if currentDeviceName != "" {
+				if (nodeType == SourceNode && hasInput) || (nodeType == SinkNode && hasOutput) {
+					nodes = append(nodes, AudioNode{
+						ID:        currentDeviceName,
+						Name:      currentDeviceName,
+						Type:      nodeType,
+						IsDefault: isDefault,
+					})
+				}
+			}
+			// Reset para o novo dispositivo
+			currentDeviceName = strings.TrimSuffix(trimmed, ":")
+			isDefault = false
+			hasInput = false
+			hasOutput = false
+			continue
+		}
+
+		if strings.Contains(line, "Default Input Device: Yes") || strings.Contains(line, "Default Output Device: Yes") {
+			isDefault = true
+		}
+		if strings.Contains(line, "Input Channels:") {
+			hasInput = true
+		}
+		if strings.Contains(line, "Output Channels:") {
+			hasOutput = true
+		}
+	}
+
+	// Adicionar o último dispositivo
+	if currentDeviceName != "" {
+		if (nodeType == SourceNode && hasInput) || (nodeType == SinkNode && hasOutput) {
 			nodes = append(nodes, AudioNode{
-				ID:        id,
-				Name:      name,
+				ID:        currentDeviceName,
+				Name:      currentDeviceName,
 				Type:      nodeType,
 				IsDefault: isDefault,
 			})
