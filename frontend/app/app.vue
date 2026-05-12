@@ -13,13 +13,7 @@ useHead({
 
 <template>
   <UApp>
-    <div class="min-h-screen bg-gray-950 text-white font-sans antialiased">
-      <!-- Background Effects -->
-      <div class="fixed inset-0 overflow-hidden pointer-events-none">
-        <div class="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-primary-500/10 blur-[120px] rounded-full" />
-        <div class="absolute top-[20%] -right-[10%] w-[30%] h-[30%] bg-blue-500/5 blur-[100px] rounded-full" />
-      </div>
-
+    <div class="min-h-screen font-sans antialiased">
       <NuxtPage />
     </div>
     

@@ -63,11 +63,11 @@ async function handleConnection() {
 
 <template>
   <UCard
-    class="relative overflow-hidden transition-all duration-300 border-gray-800"
+    class="relative overflow-hidden transition-all duration-300 border-slate-800/50 hover:border-primary-500/30 hover:shadow-primary-500/10 group"
     :class="[
       isConnected 
-        ? 'ring-2 ring-primary-500 bg-primary-950/20 shadow-lg shadow-primary-900/20' 
-        : 'bg-gray-900/40 backdrop-blur-md hover:bg-gray-900/60'
+        ? 'ring-1 ring-primary-500/50 bg-primary-950/20 shadow-lg shadow-primary-900/10' 
+        : 'bg-slate-900/40 backdrop-blur-md'
     ]"
   >
     <!-- Header -->
@@ -75,65 +75,68 @@ async function handleConnection() {
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
           <div 
-            class="p-2 rounded-lg bg-gray-800 text-gray-400"
+            class="p-2.5 rounded-xl bg-slate-800/50 text-slate-400 transition-colors group-hover:bg-slate-800"
             :class="{ 'bg-primary-500/20 text-primary-400': isConnected }"
           >
-            <UIcon :name="platformIcon" class="w-6 h-6" />
+            <UIcon :name="platformIcon" class="w-5 h-5" />
           </div>
           <div>
-            <h3 class="font-bold text-white leading-tight">{{ device.name }}</h3>
-            <p class="text-xs text-gray-500 font-mono">{{ device.ip }}</p>
+            <h3 class="font-bold text-slate-100 leading-tight">{{ device.name }}</h3>
+            <p class="text-[10px] text-slate-500 font-mono tracking-tighter uppercase">{{ device.ip }}</p>
           </div>
         </div>
         
-        <UBadge 
-          v-if="isConnected" 
-          color="primary" 
-          variant="subtle" 
-          size="xs"
-          class="animate-pulse"
-        >
-          ATIVO
-        </UBadge>
-        <UButton
-          v-else
-          icon="i-heroicons-trash"
-          color="gray"
-          variant="ghost"
-          size="xs"
-          @click="siren.removeDevice(device.id)"
-        />
+        <div class="flex items-center gap-2">
+          <UBadge 
+            v-if="isConnected" 
+            color="primary" 
+            variant="subtle" 
+            size="xs"
+            class="animate-pulse font-bold tracking-widest text-[9px]"
+          >
+            LIVE
+          </UBadge>
+          <UButton
+            v-else
+            icon="i-heroicons-trash"
+            color="neutral"
+            variant="ghost"
+            size="xs"
+            class="opacity-0 group-hover:opacity-100 transition-opacity"
+            @click="siren.removeDevice(device.id)"
+          />
+        </div>
       </div>
     </template>
 
     <!-- Body -->
     <div class="space-y-6">
       <!-- Toggles Grid -->
-      <div class="grid grid-cols-2 gap-4 p-3 rounded-xl bg-black/20 border border-white/5">
-        <div class="space-y-3">
+      <div class="grid grid-cols-2 gap-4 p-4 rounded-xl bg-slate-950/40 border border-slate-800/50">
+        <div class="space-y-4">
           <div class="flex items-center justify-between">
-            <span class="text-xs text-gray-400">Enviar Mic</span>
-            <UToggle v-model="sendMic" size="sm" />
+            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Enviar Mic</span>
+            <UToggle v-model="sendMic" size="sm" color="primary" />
           </div>
           <div class="flex items-center justify-between">
-            <span class="text-xs text-gray-400">Enviar Áudio</span>
-            <UToggle v-model="sendAudio" size="sm" />
+            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Enviar Som</span>
+            <UToggle v-model="sendAudio" size="sm" color="primary" />
           </div>
         </div>
-        <div class="space-y-3">
+        <div class="space-y-4">
           <div class="flex items-center justify-between">
-            <span class="text-xs text-gray-400">Receber Mic</span>
-            <UToggle v-model="recvMic" size="sm" />
+            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Recv Mic</span>
+            <UToggle v-model="recvMic" size="sm" color="primary" />
           </div>
           <div class="flex items-center justify-between">
-            <span class="text-xs text-gray-400">Receber Áudio</span>
-            <UToggle v-model="recvAudio" size="sm" />
+            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Recv Som</span>
+            <UToggle v-model="recvAudio" size="sm" color="primary" />
           </div>
         </div>
       </div>
 
       <!-- Hardware Selection -->
-      <div class="grid grid-cols-1 gap-4">
+      <div class="space-y-3">
         <HardwareSelector type="source" v-model="selectedSource" />
         <HardwareSelector type="sink" v-model="selectedSink" />
       </div>
@@ -144,13 +147,14 @@ async function handleConnection() {
       <UButton
         block
         size="lg"
-        :color="isConnected ? 'red' : 'primary'"
-        :variant="isConnected ? 'soft' : 'solid'"
+        :color="isConnected ? 'error' : 'primary'"
+        :variant="isConnected ? 'solid' : 'outline'"
         :icon="isConnected ? 'i-heroicons-stop-circle' : 'i-heroicons-play-circle'"
         :loading="siren.isLoading"
+        :class="{ 'animate-pulse bg-rose-600 border-none': isConnected }"
         @click="handleConnection"
       >
-        {{ isConnected ? 'Desconectar' : 'Conectar Agora' }}
+        {{ isConnected ? 'Encerrar Túnel' : 'Iniciar Conexão' }}
       </UButton>
     </template>
   </UCard>

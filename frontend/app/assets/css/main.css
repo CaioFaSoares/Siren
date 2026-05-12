@@ -1,0 +1,10 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+@layer base {
+  body {
+    @apply bg-slate-950 text-slate-200 min-h-screen;
+    background-image: radial-gradient(circle at 50% 0%, rgb(30, 41, 59) 0%, rgb(2, 6, 23) 100%);
+    background-attachment: fixed;
+  }
+}

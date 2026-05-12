@@ -57,19 +57,19 @@ onUnmounted(() => {
 <template>
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 relative z-10">
     <!-- Header -->
-    <header class="flex items-center justify-between mb-12">
+    <header class="sticky top-0 z-50 w-full backdrop-blur-md bg-slate-950/60 border-b border-slate-800 px-6 py-4 flex justify-between items-center mb-12 -mx-4 sm:-mx-6 lg:-mx-8">
       <div class="flex items-center gap-4">
-        <div class="p-3 bg-primary-500 rounded-2xl shadow-lg shadow-primary-500/20">
-          <UIcon name="i-heroicons-musical-note-20-solid" class="w-8 h-8 text-white" />
+        <div class="p-2 bg-primary-500 rounded-xl shadow-lg shadow-primary-500/20">
+          <UIcon name="i-heroicons-musical-note-20-solid" class="w-6 h-6 text-white" />
         </div>
         <div>
-          <h1 class="text-3xl font-black tracking-tight text-white">Siren</h1>
-          <p class="text-sm text-gray-500 font-medium">Remote Audio Orchestrator</p>
+          <h1 class="text-2xl font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-primary-400 to-primary-600">SIREN</h1>
+          <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Audio Orchestrator</p>
         </div>
       </div>
 
       <div class="flex items-center gap-4">
-        <UBadge v-if="siren.isTunnelActive" color="primary" variant="subtle" class="hidden sm:flex">
+        <UBadge v-if="siren.isTunnelActive" color="primary" variant="subtle" class="hidden sm:flex animate-pulse">
           Streaming Ativo
         </UBadge>
         <AddDeviceModal />
