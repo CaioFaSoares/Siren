@@ -22,6 +22,11 @@ func NewManager(store *Store, engine AudioEngine) *Manager {
 	}
 }
 
+// GetStore retorna a instância do Store (persistência)
+func (m *Manager) GetStore() *Store {
+	return m.store
+}
+
 // StartTunnelToDevice inicia um túnel de áudio para um dispositivo específico
 func (m *Manager) StartTunnelToDevice(deviceID string) error {
 	// 1. Buscar o dispositivo no Store

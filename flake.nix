@@ -29,10 +29,15 @@
         pkg-config
         gtk3
         webkitgtk_4_1
+        libayatana-appindicator
+        libdbusmenu-gtk3
         cairo
         gdk-pixbuf
         glib
         libsoup_3
+        gst_all_1.gstreamer
+        gst_all_1.gst-plugins-base
+        gst_all_1.gst-plugins-good
       ];
 
     in {

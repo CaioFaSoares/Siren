@@ -59,6 +59,9 @@ go build -o build/bin/siren-cli ./cmd/siren-cli
 
 ### Rodar GUI em Modo Dev
 ```bash
+# Compilar e rodar com hot-reload no Mac
+wails dev 
+
 # Compilar e rodar com hot-reload (Linux com suporte a WebKit)
 wails dev -tags webkit2_41
 ```

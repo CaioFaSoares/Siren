@@ -30,9 +30,10 @@ func main() {
 
 	// Cria a aplicação com as opções do Wails
 	err = wails.Run(&options.App{
-		Title:  "Siren",
-		Width:  1024,
-		Height: 768,
+		Title:             "Siren",
+		Width:             1024,
+		Height:            768,
+		HideWindowOnClose: true, // Mantém o app rodando oculto ao fechar
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
