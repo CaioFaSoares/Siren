@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"sync"
@@ -47,11 +48,23 @@ func (e *darwinEngine) Start(config TunnelConfig, targetIP string) error {
 
 		sendCmd := exec.CommandContext(ctx, "roc-send", sendArgs...)
 		
+		if Verbose {
+			fmt.Printf("🔍 [ROC Exec] %s\n", strings.Join(sendCmd.Args, " "))
+			sendCmd.Stdout = os.Stdout
+			sendCmd.Stderr = os.Stderr
+		}
+		
 		go func() {
-			var stderr bytes.Buffer
-			sendCmd.Stderr = &stderr
-			if err := sendCmd.Run(); err != nil && ctx.Err() == nil {
-				fmt.Printf("Erro no processo roc-send: %v (Stderr: %s)\n", err, stderr.String())
+			if !Verbose {
+				var stderr bytes.Buffer
+				sendCmd.Stderr = &stderr
+				if err := sendCmd.Run(); err != nil && ctx.Err() == nil {
+					fmt.Printf("Erro no processo roc-send: %v (Stderr: %s)\n", err, stderr.String())
+				}
+			} else {
+				if err := sendCmd.Run(); err != nil && ctx.Err() == nil {
+					fmt.Printf("Erro no processo roc-send: %v\n", err)
+				}
 			}
 		}()
 	}
@@ -71,11 +84,23 @@ func (e *darwinEngine) Start(config TunnelConfig, targetIP string) error {
 
 		recvCmd := exec.CommandContext(ctx, "roc-recv", recvArgs...)
 
+		if Verbose {
+			fmt.Printf("🔍 [ROC Exec] %s\n", strings.Join(recvCmd.Args, " "))
+			recvCmd.Stdout = os.Stdout
+			recvCmd.Stderr = os.Stderr
+		}
+
 		go func() {
-			var stderr bytes.Buffer
-			recvCmd.Stderr = &stderr
-			if err := recvCmd.Run(); err != nil && ctx.Err() == nil {
-				fmt.Printf("Erro no processo roc-recv: %v (Stderr: %s)\n", err, stderr.String())
+			if !Verbose {
+				var stderr bytes.Buffer
+				recvCmd.Stderr = &stderr
+				if err := recvCmd.Run(); err != nil && ctx.Err() == nil {
+					fmt.Printf("Erro no processo roc-recv: %v (Stderr: %s)\n", err, stderr.String())
+				}
+			} else {
+				if err := recvCmd.Run(); err != nil && ctx.Err() == nil {
+					fmt.Printf("Erro no processo roc-recv: %v\n", err)
+				}
 			}
 		}()
 	}

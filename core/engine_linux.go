@@ -46,6 +46,9 @@ func (e *linuxEngine) Start(config TunnelConfig, targetIP string) error {
 		}
 
 		output := strings.TrimSpace(out.String())
+		if Verbose && output != "" {
+			fmt.Printf("📄 [PipeWire Output] %s\n", output)
+		}
 		if output != "" {
 			re := regexp.MustCompile(`(\d+)`)
 			match := re.FindStringSubmatch(output)
