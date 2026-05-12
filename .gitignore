@@ -37,3 +37,4 @@ bin/
 config.yaml
 config.json
 *.log
+ips.md
